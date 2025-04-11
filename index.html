@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trench Realm - 3D Room Simulator</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #controls-guide {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: none;
+            font-size: 14px;
+            max-width: 250px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        #controls-guide h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        #computer-screen {
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            display: none;
+            z-index: 10;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+        }
+        #computer-screen iframe {
+            width: 100%;
+            height: calc(100% - 40px);
+            border: none;
+            margin-top: 40px;
+        }
+        #exit-button {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            padding: 10px 20px;
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 11;
+            display: none;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.2s;
+        }
+        #exit-button:hover {
+            background-color: #ff6666;
+        }
+        #interaction-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+            pointer-events: none;
+            font-weight: bold;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            margin: -10px 0 0 -10px;
+            pointer-events: none;
+            z-index: 5;
+        }
+        #crosshair::before, #crosshair::after {
+            content: "";
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        #crosshair::before {
+            top: 9px;
+            left: 5px;
+            width: 10px;
+            height: 2px;
+        }
+        #crosshair::after {
+            top: 5px;
+            left: 9px;
+            width: 2px;
+            height: 10px;
+        }
+        #loading-screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            color: white;
+            font-size: 24px;
+            flex-direction: column;
+        }
+        .loading-bar {
+            width: 300px;
+            height: 10px;
+            background-color: #333;
+            border-radius: 5px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        .loading-progress {
+            width: 0%;
+            height: 100%;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            transition: width 0.3s;
+        }
+        #blocker {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        #instructions {
+            max-width: 500px;
+            padding: 25px;
+            border-radius: 10px;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: #ffffff;
+            text-align: center;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        #instructions h1 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        #instructions ul {
+            text-align: left;
+            line-height: 1.6;
+        }
+        #sleep-prompt {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            display: none;
+            pointer-events: none;
+            font-weight: bold;
+        }
+        #sleep-exit-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background-color: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 11;
+            display: none;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.2s;
+        }
+        #sleep-exit-button:hover {
+            background-color: #ff6666;
+        }
+        /* Attempt to hide browser pointer lock messages */
+        .controls-locked .pointerlock-message,
+        .controls-locked [class*="pointer-lock"],
+        .controls-locked [id*="pointer-lock"],
+        .controls-locked [class*="pointerLock"],
+        .controls-locked [id*="pointerLock"] {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+        }
+        /* Add tab styles */
+        #tab-nav {
+            position: absolute;
+            top: 5px;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background-color: #333;
+            z-index: 11;
+            display: none;
+        }
+        .tab-buttons {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+        }
+        .tab-button {
+            padding: 5px 20px;
+            margin: 0 10px;
+            background-color: #555;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .tab-button:hover {
+            background-color: #777;
+        }
+        .tab-button.active {
+            background-color: #4CAF50;
+        }
+        /* Twitter logo styles */
+        #twitter-link {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background-color: rgba(0, 0, 0, 0.6);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 5;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: background-color 0.2s;
+        }
+        #twitter-link:hover {
+            background-color: rgba(0, 0, 0, 0.8);
+        }
+        #twitter-link svg {
+            width: 22px;
+            height: 22px;
+            fill: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading-screen">
+        <h2>Loading "Trench Realm"...</h2>
+        <div class="loading-bar">
+            <div class="loading-progress" id="progress-bar"></div>
+        </div>
+    </div>
+
+    <div id="blocker">
+        <div id="instructions">
+            <h1>Trench Realm</h1>
+            <p>Click to play</p>
+            <ul>
+                <li><strong>W, A, S, D</strong> - Move around</li>
+                <li><strong>Mouse</strong> - Look around</li>
+                <li><strong>Space</strong> - Jump</li>
+                <li><strong>E</strong> - Interact with computer</li>
+                <li><strong>R</strong> - Sleep on bed</li>
+                <li><strong>ESC</strong> - Exit computer or sleep</li>
+            </ul>
+            <p>Click anywhere to start!</p>
+            <!-- Twitter/X Link -->
+            <div style="margin-top: 30px; text-align: center;">
+                <a href="https://x.com/RealmDotRent" target="_blank" style="display: inline-block;">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" width="24" height="24" style="fill: white; vertical-align: middle; margin-right: 8px;">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.45-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
+                    </svg>
+                    <span style="color: white; vertical-align: middle;">@RealmDotRent</span>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div id="controls-guide">
+        <h3>Controls:</h3>
+        <p>W, A, S, D - Move</p>
+        <p>Space - Jump</p>
+        <p>Mouse - Look around</p>
+        <p>E - Interact with computer</p>
+        <p>R - Sleep on bed</p>
+        <p>ESC - Exit interactions</p>
+    </div>
+    <div id="crosshair"></div>
+    <div id="interaction-prompt">Press E to use computer</div>
+    
+    <div id="computer-screen">
+        <div id="tab-nav">
+            <div class="tab-buttons">
+                <button class="tab-button active" data-tab="jup">JUP</button>
+            </div>
+        </div>
+        <iframe src="about:blank" id="computer-iframe"></iframe>
+    </div>
+    <button id="exit-button">Exit Computer (ESC)</button>
+
+    <div id="sleep-prompt">Press R to Sleep</div>
+    <button id="sleep-exit-button">Exit Sleep (R)</button>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.151.3/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.151.3/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+        
+        // Main variables
+        let camera, scene, renderer, controls;
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+        let canJump = false;
+        let raycaster;
+        let computerInteractable = false;
+        let computerActive = false;
+        let colliders = [];
+        let prevTime = performance.now();
+        let velocity = new THREE.Vector3();
+        let direction = new THREE.Vector3();
+        let bobTimer = 0;
+        let bobHeight = 0;
+        let bobActive = false;
+        // Add jumping variables
+        let isJumping = false;
+        let jumpVelocity = 0;
+        let gravity = 15.0;
+        let jumpStrength = 4.0;
+
+        // Player settings
+        const playerHeight = 1.8;
+        const moveSpeed = 3.6; // Reduced from 6.0 by 40%
+        const playerRadius = 0.5;
+        
+        // Room dimensions (larger room)
+        const roomWidth = 15;
+        const roomDepth = 15;
+        const roomHeight = 4.6;
+
+        // DOM elements
+        const blocker = document.getElementById('blocker');
+        const instructions = document.getElementById('instructions');
+        const computerScreen = document.getElementById('computer-screen');
+        const computerIframe = document.getElementById('computer-iframe');
+        const exitButton = document.getElementById('exit-button');
+        const interactionPrompt = document.getElementById('interaction-prompt');
+        const crosshair = document.getElementById('crosshair');
+        const loadingScreen = document.getElementById('loading-screen');
+        const progressBar = document.getElementById('progress-bar');
+        const controlsGuide = document.getElementById('controls-guide');
+
+        // Add these variables to store the player's position and direction when using the computer
+        let savedPlayerPosition = null;
+        let savedPlayerRotation = null;
+
+        // Add sleep mode variables
+        let bedInteractable = false;
+        let sleepMode = false;
+        let savedSleepPosition = null;
+        let savedSleepRotation = null;
+
+        // Add these variables for improved movement
+        let playerVelocity = new THREE.Vector3();
+        let playerDirection = new THREE.Vector3();
+        let movementState = {
+            sprinting: false,
+            crouching: false
+        };
+
+        // Add these variables for camera constraints
+        let verticalLookMin = -Math.PI/2 + 0.1; // Slightly above looking straight down
+        let verticalLookMax = Math.PI/2 - 0.1;  // Slightly below looking straight up
+        let cameraQuat = new THREE.Quaternion();
+        let cameraPitch = 0;
+
+        // Add current tab variable
+        let currentTab = 'jup';
+
+        // Initialize the game
+        init();
+        
+        function init() {
+            // Simulate loading screen
+            simulateLoading().then(() => {
+                // Create scene
+                createScene();
+                
+                // Make sure we have a valid background color
+                scene.background = new THREE.Color(0xFFFFFF);
+                
+                // IMPORTANT: Position the player in a specific location where we know they can see objects
+                // Move player to face the computer desk
+                controls.getObject().position.set(-roomWidth/4, playerHeight, 3);
+                
+                // Look slightly downward to see the desk - using the new camera pitch system
+                cameraPitch = -0.3;
+                camera.rotation.x = cameraPitch;
+                
+                console.log("Initial position set to:", 
+                    controls.getObject().position.x, 
+                    controls.getObject().position.y, 
+                    controls.getObject().position.z);
+                
+                // Explicitly render multiple times to ensure the scene appears
+                for (let i = 0; i < 3; i++) {
+                    renderer.render(scene, camera);
+                }
+                
+                // Start animation loop
+                animate();
+                
+                // Log that initialization is complete
+                console.log("Game initialized successfully");
+                
+                // Call setupFullscreenAndControls to handle the ESC prompt
+                setupFullscreenAndControls();
+            }).catch(error => {
+                console.error("Error initializing game:", error);
+                // Display error on screen for debugging
+                document.body.innerHTML += `<div style="position:absolute;top:10px;left:10px;color:red;background:white;padding:10px;z-index:1000">
+                    Error initializing game: ${error.message}
+                </div>`;
+            });
+            
+            // Add a safety check that runs every second to force player back into the room if they somehow get out
+            setInterval(() => {
+                if (controls && controls.getObject()) {
+                    const position = controls.getObject().position;
+                    
+                    // Check if player is far outside the room
+                    if (Math.abs(position.x) > roomWidth || Math.abs(position.z) > roomDepth) {
+                        console.warn("Player detected outside room bounds! Resetting position...");
+                        
+                        // Force player back to center of room
+                        position.set(0, playerHeight, 0);
+                        
+                        // Force render to update visuals
+                        if (renderer && scene && camera) {
+                            renderer.render(scene, camera);
+                        }
+                    }
+                }
+            }, 1000);
+        }
+
+        function simulateLoading() {
+            return new Promise((resolve) => {
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += Math.random() * 30;
+                    if (progress >= 100) {
+                        progress = 100;
+                        clearInterval(interval);
+                        setTimeout(() => {
+                            loadingScreen.style.display = 'none';
+                            resolve();
+                        }, 200);
+                    }
+                    progressBar.style.width = progress + '%';
+                }, 150);
+            });
+        }
+        
+        function createScene() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xFFFFFF); // White background to match walls
+            
+            // Add fog for atmosphere (reduced)
+            scene.fog = new THREE.Fog(0xFFFFFF, 30, 50);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.y = playerHeight; // Center of the room
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            // Reduce shadow intensity
+            renderer.shadowMap.darkness = 0.1;
+            document.body.appendChild(renderer.domElement);
+            
+            // Increase ambient light significantly to ensure visibility
+            const ambientLight = new THREE.AmbientLight(0xffffff, 1.0); // Increased to full intensity
+            scene.add(ambientLight);
+            
+            // Add directional light
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            directionalLight.position.set(5, 10, 7.5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.bias = 0.0001;
+            scene.add(directionalLight);
+            
+            // Create controls with modified settings
+            controls = new PointerLockControls(camera, document.body);
+            
+            // Override the default PointerLockControls behavior to add constraints
+            const originalOnMouseMove = controls.onMouseMove;
+            controls.onMouseMove = function(event) {
+                if (this.isLocked === false) return;
+                
+                const movementX = event.movementX || event.mozMovementX || event.webkitMovementX || 0;
+                const movementY = event.movementY || event.mozMovementY || event.webkitMovementY || 0;
+                
+                // Handle horizontal rotation normally (around Y axis)
+                this.getObject().rotation.y -= movementX * 0.002;
+                
+                // Handle vertical rotation with constraints
+                cameraPitch -= movementY * 0.002;
+                
+                // FIXED: Different constraints when in sleep mode vs normal mode
+                if (sleepMode) {
+                    // When in bed, allow more freedom to look around
+                    // Allow looking in all directions while in bed
+                    cameraPitch = Math.max(-Math.PI, Math.min(Math.PI, cameraPitch));
+                } else {
+                    // Normal constraints when not in bed
+                    cameraPitch = Math.max(verticalLookMin, Math.min(verticalLookMax, cameraPitch));
+                }
+                
+                // Apply the constrained pitch to the camera
+                camera.rotation.x = cameraPitch;
+            };
+            
+            // Add debug overlay to help diagnose issues
+            addDebugOverlay();
+            
+            // Rest of createScene implementation...
+            
+            // Handle pointer lock events
+            controls.addEventListener('lock', function() {
+                blocker.style.display = 'none';
+                if (!computerActive && !sleepMode) {
+                    crosshair.style.display = 'block';
+                    controlsGuide.style.display = 'block';
+                }
+            });
+
+            controls.addEventListener('unlock', function() {
+                if (!computerActive && !sleepMode) {
+                    blocker.style.display = 'flex';
+                    crosshair.style.display = 'none';
+                    controlsGuide.style.display = 'none';
+                }
+            });
+            
+            // Click to start controls
+            instructions.addEventListener('click', function() {
+                controls.lock();
+            });
+            
+            scene.add(controls.getObject());
+            
+            // Create room
+            createRoom();
+            
+            // Raycaster for interaction detection
+            raycaster = new THREE.Raycaster();
+            
+            // Handle keyboard controls
+            document.addEventListener('keydown', onKeyDown);
+            document.addEventListener('keyup', onKeyUp);
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Computer interaction
+            exitButton.addEventListener('click', exitComputer);
+
+            // Sleep interaction
+            document.getElementById('sleep-exit-button').addEventListener('click', exitSleep);
+            
+            // Set up tab buttons
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    loadTab(this.dataset.tab);
+                });
+            });
+        }
+        
+        function createRoom() {
+            // Floor - green carpet color like in the image
+            const floorGeometry = new THREE.PlaneGeometry(roomWidth, roomDepth);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4D8061, // Green carpet color from image
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            
+            // Walls - white color like in the image
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xFFFFFF, // White walls
+                roughness: 0.7,
+                metalness: 0.1
+            });
+            
+            // Back wall
+            const backWallGeometry = new THREE.PlaneGeometry(roomWidth, roomHeight);
+            const backWall = new THREE.Mesh(backWallGeometry, wallMaterial);
+            backWall.position.z = -roomDepth/2;
+            backWall.position.y = roomHeight/2;
+            backWall.receiveShadow = true;
+            scene.add(backWall);
+            
+            // Wall collider
+            const backWallCollider = new THREE.Mesh(
+                new THREE.BoxGeometry(roomWidth, roomHeight, 0.2),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            backWallCollider.position.set(0, roomHeight/2, -roomDepth/2);
+            backWallCollider.name = "collider";
+            scene.add(backWallCollider);
+            colliders.push(backWallCollider);
+            
+            // Left wall
+            const leftWallGeometry = new THREE.PlaneGeometry(roomDepth, roomHeight);
+            const leftWall = new THREE.Mesh(leftWallGeometry, wallMaterial);
+            leftWall.position.x = -roomWidth/2;
+            leftWall.position.y = roomHeight/2;
+            leftWall.rotation.y = Math.PI / 2;
+            leftWall.receiveShadow = true;
+            scene.add(leftWall);
+            
+            // Wall collider
+            const leftWallCollider = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, roomHeight, roomDepth),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            leftWallCollider.position.set(-roomWidth/2, roomHeight/2, 0);
+            leftWallCollider.name = "collider";
+            scene.add(leftWallCollider);
+            colliders.push(leftWallCollider);
+            
+            // Right wall
+            const rightWallGeometry = new THREE.PlaneGeometry(roomDepth, roomHeight);
+            const rightWall = new THREE.Mesh(rightWallGeometry, wallMaterial);
+            rightWall.position.x = roomWidth/2;
+            rightWall.position.y = roomHeight/2;
+            rightWall.rotation.y = -Math.PI / 2;
+            rightWall.receiveShadow = true;
+            scene.add(rightWall);
+            
+            // Wall collider
+            const rightWallCollider = new THREE.Mesh(
+                new THREE.BoxGeometry(0.2, roomHeight, roomDepth),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            rightWallCollider.position.set(roomWidth/2, roomHeight/2, 0);
+            rightWallCollider.name = "collider";
+            scene.add(rightWallCollider);
+            colliders.push(rightWallCollider);
+            
+            // Front wall (solid wall, no window)
+            const frontWallGeometry = new THREE.PlaneGeometry(roomWidth, roomHeight);
+            const frontWall = new THREE.Mesh(frontWallGeometry, wallMaterial);
+            frontWall.position.z = roomDepth/2;
+            frontWall.position.y = roomHeight/2;
+            frontWall.rotation.y = Math.PI;
+            frontWall.receiveShadow = true;
+            scene.add(frontWall);
+            
+            // Front wall collider
+            const frontWallCollider = new THREE.Mesh(
+                new THREE.BoxGeometry(roomWidth, roomHeight, 0.2),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            frontWallCollider.position.set(0, roomHeight/2, roomDepth/2);
+            frontWallCollider.name = "collider";
+            scene.add(frontWallCollider);
+            colliders.push(frontWallCollider);
+            
+            // Ceiling with coffered design like in the image
+            createCofferedCeiling();
+            
+            // Add a desk on the left side
+            const deskGeometry = new THREE.BoxGeometry(3, 0.1, 1.5);
+            const deskMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xA0522D, // Brown desk
+                roughness: 0.7,
+                metalness: 0.2
+            });
+            const desk = new THREE.Mesh(deskGeometry, deskMaterial);
+            desk.position.set(-roomWidth/4, 0.8, 0);
+            desk.castShadow = true;
+            desk.receiveShadow = true;
+            scene.add(desk);
+            
+            // Add collision for desk
+            const deskCollider = new THREE.Mesh(
+                new THREE.BoxGeometry(3, 1.6, 1.5),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            deskCollider.position.set(-roomWidth/4, 0.8, 0);
+            deskCollider.name = "collider";
+            scene.add(deskCollider);
+            colliders.push(deskCollider);
+            
+            // Desk legs
+            const legGeometry = new THREE.BoxGeometry(0.1, 0.8, 0.1);
+            const legMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x8B4513,
+                roughness: 0.7,
+                metalness: 0.2
+            });
+            
+            const legPositions = [
+                [-roomWidth/4 - 1.4, 0.4, -0.65],
+                [-roomWidth/4 + 1.4, 0.4, -0.65],
+                [-roomWidth/4 - 1.4, 0.4, 0.65],
+                [-roomWidth/4 + 1.4, 0.4, 0.65]
+            ];
+            
+            legPositions.forEach(pos => {
+                const leg = new THREE.Mesh(legGeometry, legMaterial);
+                leg.position.set(pos[0], pos[1], pos[2]);
+                leg.castShadow = true;
+                scene.add(leg);
+            });
+            
+            // Computer setup with improved mesh (Mac-like)
+            createComputer(-roomWidth/4, 0.8, 0);
+            
+            // Chair - facing the desk
+            const chairSeatGeometry = new THREE.BoxGeometry(0.6, 0.05, 0.6);
+            const chairMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333333,
+                roughness: 0.7,
+                metalness: 0.2
+            });
+            const chairSeat = new THREE.Mesh(chairSeatGeometry, chairMaterial);
+            chairSeat.position.set(-roomWidth/4, 0.5, 1);
+            chairSeat.castShadow = true;
+            scene.add(chairSeat);
+            
+            // Add collision for chair
+            const chairCollider = new THREE.Mesh(
+                new THREE.BoxGeometry(0.6, 1.0, 0.6),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            chairCollider.position.set(-roomWidth/4, 0.5, 1);
+            chairCollider.name = "collider";
+            scene.add(chairCollider);
+            colliders.push(chairCollider);
+            
+            // Chair back - facing the desk
+            const chairBackGeometry = new THREE.BoxGeometry(0.6, 0.6, 0.05);
+            const chairBack = new THREE.Mesh(chairBackGeometry, chairMaterial);
+            chairBack.position.set(-roomWidth/4, 0.85, 1.3);
+            chairBack.castShadow = true;
+            scene.add(chairBack);
+            
+            // Chair legs
+            const chairLegGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.5, 8);
+            const chairLegMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x444444,
+                roughness: 0.5,
+                metalness: 0.7
+            });
+            
+            const chairLegPositions = [
+                [-roomWidth/4 - 0.25, 0.25, 0.75],
+                [-roomWidth/4 + 0.25, 0.25, 0.75],
+                [-roomWidth/4 - 0.25, 0.25, 1.25],
+                [-roomWidth/4 + 0.25, 0.25, 1.25]
+            ];
+            
+            chairLegPositions.forEach(pos => {
+                const chairLeg = new THREE.Mesh(chairLegGeometry, chairLegMaterial);
+                chairLeg.position.set(pos[0], pos[1], pos[2]);
+                chairLeg.castShadow = true;
+                scene.add(chairLeg);
+            });
+            
+            // Add bed on the right side, parallel to the desk (lowered to the floor)
+            createBed(roomWidth/4, 0.2, 0);
+        }
+        
+        function createCofferedCeiling() {
+            // Main ceiling (raised by 15%)
+            const ceilingGeometry = new THREE.PlaneGeometry(roomWidth, roomDepth);
+            const ceilingMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xFFFFFF, // White ceiling
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+            ceiling.position.y = roomHeight; // Automatically uses the increased height
+            ceiling.rotation.x = Math.PI / 2;
+            ceiling.receiveShadow = true;
+            scene.add(ceiling);
+            
+            // Create grid pattern for coffered ceiling
+            const gridSize = 5; // Number of grid cells in each direction
+            const cellWidth = roomWidth / gridSize;
+            const cellDepth = roomDepth / gridSize;
+            const cofferDepth = 0.2; // How deep the coffers are
+            const cofferWidth = 0.2; // Width of the coffer beams
+            
+            // Material for the coffer beams
+            const cofferMaterial = new THREE.MeshStandardMaterial({
+                color: 0xE0E0E0, // Light grey
+                roughness: 0.7,
+                metalness: 0.2
+            });
+            
+            // Create horizontal beams
+            for (let i = 0; i <= gridSize; i++) {
+                const beam = new THREE.Mesh(
+                    new THREE.BoxGeometry(roomWidth, cofferWidth, cofferDepth),
+                    cofferMaterial
+                );
+                beam.position.set(0, roomHeight - cofferDepth/2, -roomDepth/2 + i * cellDepth);
+                beam.castShadow = false;
+                scene.add(beam);
+            }
+            
+            // Create vertical beams
+            for (let i = 0; i <= gridSize; i++) {
+                const beam = new THREE.Mesh(
+                    new THREE.BoxGeometry(cofferWidth, cofferDepth, roomDepth),
+                    cofferMaterial
+                );
+                beam.position.set(-roomWidth/2 + i * cellWidth, roomHeight - cofferDepth/2, 0);
+                beam.castShadow = false;
+                scene.add(beam);
+            }
+            
+            // Add recessed lights in some of the coffers
+            const lightGeometry = new THREE.PlaneGeometry(cellWidth - cofferWidth, cellDepth - cofferWidth);
+            const lightMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFFFFFF,
+                emissive: 0xFFFFFF,
+                emissiveIntensity: 1.0
+            });
+            
+            // Add lights in a pattern (every other coffer)
+            for (let i = 0; i < gridSize; i++) {
+                for (let j = 0; j < gridSize; j++) {
+                    if ((i + j) % 2 === 0) { // Checkerboard pattern
+                        const light = new THREE.Mesh(lightGeometry, lightMaterial);
+                        light.position.set(
+                            -roomWidth/2 + (i + 0.5) * cellWidth,
+                            roomHeight - cofferDepth,
+                            -roomDepth/2 + (j + 0.5) * cellDepth
+                        );
+                        light.rotation.x = -Math.PI / 2;
+                        scene.add(light);
+                        
+                        // Add a point light for each recessed light (reduced intensity)
+                        const pointLight = new THREE.PointLight(0xFFFFFF, 0.2, 3);
+                        pointLight.position.set(
+                            -roomWidth/2 + (i + 0.5) * cellWidth,
+                            roomHeight - cofferDepth - 0.1,
+                            -roomDepth/2 + (j + 0.5) * cellDepth
+                        );
+                        scene.add(pointLight);
+                    }
+                }
+            }
+        }
+        
+        function createBed(x, y, z) {
+            // Mattress (smaller size) - lowered to the floor
+            const mattressGeometry = new THREE.BoxGeometry(2.2, 0.4, 4);
+            const mattressMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xFFFFFF, // White
+                roughness: 0.5,
+                metalness: 0.1
+            });
+            const mattress = new THREE.Mesh(mattressGeometry, mattressMaterial);
+            // Lower the bed to the floor
+            mattress.position.set(x, y, z);
+            mattress.castShadow = true;
+            mattress.receiveShadow = true;
+            scene.add(mattress);
+            
+            // Add collision for bed (without visible frame)
+            const bedCollider = new THREE.Mesh(
+                new THREE.BoxGeometry(2.2, 0.8, 4),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            bedCollider.position.set(x, y, z);
+            bedCollider.name = "collider";
+            scene.add(bedCollider);
+            colliders.push(bedCollider);
+            
+            // Pillow (smaller to match mattress)
+            const pillowGeometry = new THREE.BoxGeometry(1.6, 0.3, 0.8);
+            const pillowMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xFFFFFF, // White
+                roughness: 0.5,
+                metalness: 0.1
+            });
+            const pillow = new THREE.Mesh(pillowGeometry, pillowMaterial);
+            pillow.position.set(x, y + 0.2, z - 1.5);
+            pillow.castShadow = true;
+            pillow.receiveShadow = true;
+            scene.add(pillow);
+            
+            // Blanket (smaller to match mattress)
+            const blanketGeometry = new THREE.BoxGeometry(2.1, 0.1, 2.5);
+            const blanketMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4169E1, // Royal Blue
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            const blanket = new THREE.Mesh(blanketGeometry, blanketMaterial);
+            blanket.position.set(x, y + 0.25, z + 0.7);
+            blanket.castShadow = true;
+            blanket.receiveShadow = true;
+            scene.add(blanket);
+
+            // Add a collision box specifically for sleep interaction
+            const bedInteractionBox = new THREE.Mesh(
+                new THREE.BoxGeometry(2.2, 2, 4),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            bedInteractionBox.position.set(x, y + 1, z);
+            bedInteractionBox.name = "bed";
+            scene.add(bedInteractionBox);
+        }
+        
+        function createComputer(x, y, z) {
+            // Fixed position - properly on the desk
+            const deskHeight = 0.8; // Height of the desk
+            const deskSurface = 0.1; // Thickness of desk surface
+            
+            // Mac-like stand (curved base) - Adjusted position
+            const standBaseGeometry = new THREE.CylinderGeometry(0.15, 0.2, 0.03, 32);
+            const standBaseMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xD3D3D3, // Light gray (silver)
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const standBase = new THREE.Mesh(standBaseGeometry, standBaseMaterial);
+            standBase.position.set(x, deskHeight + 0.015, z - 0.07); // Moved closer to monitor
+            standBase.castShadow = true;
+            standBase.receiveShadow = true;
+            scene.add(standBase);
+
+            // Stand neck - fixed position
+            const standNeckGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.25, 16);
+            const standNeckMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xD3D3D3, // Light gray (silver)
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const standNeck = new THREE.Mesh(standNeckGeometry, standNeckMaterial);
+            standNeck.position.set(x, deskHeight + 0.15, z - 0.07); // Moved closer to monitor
+            standNeck.castShadow = true;
+            standNeck.receiveShadow = true;
+            scene.add(standNeck);
+
+            // Monitor body (thin like a Mac)
+            const monitorGeometry = new THREE.BoxGeometry(0.8, 0.5, 0.02);
+            const monitorFrameMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xD3D3D3, // Light gray (silver)
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const monitor = new THREE.Mesh(monitorGeometry, monitorFrameMaterial);
+            monitor.position.set(x, deskHeight + 0.4, z);
+            monitor.castShadow = true;
+            monitor.receiveShadow = true;
+            scene.add(monitor);
+
+            // Monitor back (slightly curved)
+            const monitorBackGeometry = new THREE.BoxGeometry(0.78, 0.48, 0.05);
+            const monitorBackMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xD3D3D3, // Light gray (silver)
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const monitorBack = new THREE.Mesh(monitorBackGeometry, monitorBackMaterial);
+            monitorBack.position.set(x, deskHeight + 0.4, z - 0.035);
+            monitorBack.castShadow = true;
+            scene.add(monitorBack);
+
+            // Apple logo on back
+            const logoGeometry = new THREE.CircleGeometry(0.05, 32);
+            const logoMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xFFFFFF, // White
+                side: THREE.DoubleSide
+            });
+            const logo = new THREE.Mesh(logoGeometry, logoMaterial);
+            logo.position.set(x, deskHeight + 0.4, z - 0.065);
+            scene.add(logo);
+
+            // Computer screen (the interactive part)
+            const screenGeometry = new THREE.PlaneGeometry(0.75, 0.45);
+            const screenMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0x1E90FF, // Royal blue
+                emissive: 0x1E90FF,
+                emissiveIntensity: 0.5
+            });
+            const screen = new THREE.Mesh(screenGeometry, screenMaterial);
+            screen.position.set(x, deskHeight + 0.4, z + 0.015);
+            scene.add(screen);
+
+            // Create a collision box for the computer
+            const computerCollisionBox = new THREE.Mesh(
+                new THREE.BoxGeometry(1.5, 1.5, 1.5),
+                new THREE.MeshBasicMaterial({ visible: false })
+            );
+            computerCollisionBox.position.set(x, deskHeight + 0.5, z);
+            computerCollisionBox.name = "computer";
+            scene.add(computerCollisionBox);
+
+            // FIXED: Keyboard with proper positioning and visibility
+            const keyboardGeometry = new THREE.BoxGeometry(0.6, 0.02, 0.25);
+            const keyboardMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x888888, // Darker silver for better visibility
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            const keyboard = new THREE.Mesh(keyboardGeometry, keyboardMaterial);
+            keyboard.position.set(x, deskHeight + 0.06, z + 0.4); // Raised slightly and moved forward
+            keyboard.castShadow = true;
+            keyboard.receiveShadow = true;
+            scene.add(keyboard);
+            
+            // Add more visible keyboard keys
+            const keySize = 0.04;
+            const keySpacing = 0.05;
+            const keyRows = 4;
+            const keyCols = 11;
+            const keyStartX = x - (keyCols * keySpacing) / 2 + keySpacing / 2;
+            const keyStartZ = z + 0.4 - (keyRows * keySpacing) / 2 + keySpacing / 2;
+            
+            const keyMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0xDDDDDD, // Lighter color for better contrast
+                roughness: 0.5,
+                metalness: 0.1
+            });
+            
+            for (let row = 0; row < keyRows; row++) {
+                for (let col = 0; col < keyCols; col++) {
+                    const key = new THREE.Mesh(
+                        new THREE.BoxGeometry(keySize, 0.01, keySize), 
+                        keyMaterial
+                    );
+                    key.position.set(
+                        keyStartX + col * keySpacing, 
+                        deskHeight + 0.07, // Slightly above keyboard
+                        keyStartZ + row * keySpacing
+                    );
+                    key.castShadow = true;
+                    key.receiveShadow = true;
+                    scene.add(key);
+                }
+            }
+
+            // FIXED: Mouse with proper positioning and visibility
+            const mouseGeometry = new THREE.BoxGeometry(0.08, 0.02, 0.12);
+            const mouseMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x888888, // Matching keyboard color
+                roughness: 0.2,
+                metalness: 0.7
+            });
+            const mouse = new THREE.Mesh(mouseGeometry, mouseMaterial);
+            mouse.position.set(x + 0.4, deskHeight + 0.06, z + 0.4); // Aligned with keyboard
+            mouse.castShadow = true;
+            mouse.receiveShadow = true;
+            scene.add(mouse);
+            
+            // Add mouse details
+            const mouseTopGeometry = new THREE.PlaneGeometry(0.07, 0.11);
+            const mouseTopMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x999999,
+                roughness: 0.3,
+                metalness: 0.6
+            });
+            const mouseTop = new THREE.Mesh(mouseTopGeometry, mouseTopMaterial);
+            mouseTop.position.set(x + 0.4, deskHeight + 0.07, z + 0.4);
+            mouseTop.rotation.x = -Math.PI / 2;
+            mouseTop.receiveShadow = true;
+            scene.add(mouseTop);
+        }
+        
+        function activateSleep() {
+            // Save the current player position and camera rotation before activating sleep
+            savedSleepPosition = controls.getObject().position.clone();
+            savedSleepRotation = new THREE.Euler().copy(camera.rotation);
+            
+            console.log("Sleep mode activated - saved position");
+            
+            // Set sleep as active
+            sleepMode = true;
+            
+            // Reset movement variables to prevent any lingering movement
+            moveForward = false;
+            moveBackward = false;
+            moveLeft = false;
+            moveRight = false;
+            playerVelocity.set(0, 0, 0);
+            
+            // Unlock controls temporarily to change screen
+            controls.unlock();
+            
+            // Position player on the bed looking up at ceiling
+            const bedPosition = new THREE.Vector3(roomWidth/4, playerHeight - 1.0, 0);
+            controls.getObject().position.copy(bedPosition);
+            
+            // Set camera to look directly upward at the ceiling
+            cameraPitch = -Math.PI/2; // -90 degrees on X axis to look up
+            camera.rotation.x = cameraPitch;
+            
+            // Show sleep exit UI
+            document.getElementById('sleep-exit-button').style.display = 'block';
+            crosshair.style.display = 'none';
+            
+            // Re-lock controls so player can look around but not move
+            setTimeout(() => {
+                controls.lock();
+            }, 100);
+        }
+        
+        function activateComputer() {
+            // Save the current player position and camera rotation before activating computer
+            savedPlayerPosition = controls.getObject().position.clone();
+            savedPlayerRotation = new THREE.Euler().copy(camera.rotation);
+            
+            console.log("Saved position before computer use:", 
+                savedPlayerPosition.x.toFixed(2), 
+                savedPlayerPosition.y.toFixed(2), 
+                savedPlayerPosition.z.toFixed(2));
+            
+            // Set computer as active
+            computerActive = true;
+            
+            // Unlock controls
+            controls.unlock();
+            
+            // Show computer UI
+            computerScreen.style.display = 'block';
+            exitButton.style.display = 'block';
+            document.getElementById('tab-nav').style.display = 'block';
+            crosshair.style.display = 'none';
+            
+            // Load initial tab - set to JUP
+            loadTab('jup');
+        }
+        
+        function exitComputer() {
+            // First set the iframe source to blank
+            computerIframe.src = 'about:blank';
+            
+            // Hide computer UI elements
+            computerScreen.style.display = 'none';
+            exitButton.style.display = 'none';
+            document.getElementById('tab-nav').style.display = 'none';
+            
+            // Reset head bobbing
+            bobActive = false;
+            bobTimer = 0;
+            bobHeight = 0;
+            
+            // Unlock controls first to reset everything
+            controls.unlock();
+            
+            // Reset all movement state variables
+            moveForward = false;
+            moveBackward = false;
+            moveLeft = false;
+            moveRight = false;
+            playerVelocity.set(0, 0, 0);
+            
+            // Set computerActive to false
+            computerActive = false;
+            
+            // FIXED: Use a position further away from the desk to avoid getting stuck in colliders
+            const safePosition = new THREE.Vector3(-roomWidth/4, playerHeight, 2.5); // Moved from z=1.5 to z=2.5
+            
+            // Apply the safe position and enforce boundaries as a double-safety measure
+            controls.getObject().position.copy(enforceRoomBoundaries(safePosition));
+            
+            // Reset camera orientation completely
+            cameraPitch = 0; // Set to horizontal view
+            camera.rotation.set(cameraPitch, 0, 0);
+            camera.quaternion.set(0, 0, 0, 1);
+            camera.quaternion.setFromEuler(new THREE.Euler(cameraPitch, 0, 0));
+            
+            console.log("Exiting computer - using enforced safe position:", 
+                controls.getObject().position.x.toFixed(2),
+                controls.getObject().position.y.toFixed(2),
+                controls.getObject().position.z.toFixed(2));
+            
+            // Force render to update visuals
+            renderer.render(scene, camera);
+            
+            // Add a small delay before re-locking controls
+            setTimeout(() => {
+                // Double-check position is still valid and not colliding
+                if (checkCollisions()) {
+                    // If still colliding, move even further back
+                    controls.getObject().position.set(-roomWidth/4, playerHeight, 3.5);
+                    console.log("Collision detected after exit, moving to safer position");
+                }
+                
+                // Lock controls
+                controls.lock();
+                crosshair.style.display = 'block';
+                controlsGuide.style.display = 'block';
+                
+                // Force another render after locking
+                renderer.render(scene, camera);
+            }, 300);
+        }
+        
+        function exitSleep() {
+            // First, unlock controls to reset everything
+            controls.unlock();
+            
+            // Hide sleep UI elements 
+            document.getElementById('sleep-exit-button').style.display = 'none';
+            
+            // Reset all movement state variables
+            moveForward = false;
+            moveBackward = false;
+            moveLeft = false;
+            moveRight = false;
+            playerVelocity.set(0, 0, 0);
+            bobActive = false;
+            bobTimer = 0;
+            bobHeight = 0;
+            
+            // Use a position far from the bed to avoid collision issues
+            const safePosition = new THREE.Vector3(roomWidth/4, playerHeight, 3.0); // Much further from bed (z=3.0)
+            
+            // Apply the safe position
+            controls.getObject().position.copy(safePosition);
+            
+            // Reset camera orientation completely
+            cameraPitch = 0;
+            camera.rotation.set(cameraPitch, 0, 0);
+            camera.quaternion.set(0, 0, 0, 1);
+            camera.quaternion.setFromEuler(new THREE.Euler(cameraPitch, 0, 0));
+            
+            // Force render to update visuals
+            renderer.render(scene, camera);
+            
+            // IMPORTANT: Set sleepMode to false AFTER all position changes
+            sleepMode = false;
+            
+            console.log("Exiting sleep - using safe position:", 
+                controls.getObject().position.x.toFixed(2),
+                controls.getObject().position.y.toFixed(2),
+                controls.getObject().position.z.toFixed(2));
+            
+            // Add a small delay before re-locking controls
+            setTimeout(() => {
+                // Double-check position is still valid
+                enforceRoomBoundaries(controls.getObject().position);
+                
+                // Lock controls
+                controls.lock();
+                crosshair.style.display = 'block';
+                controlsGuide.style.display = 'block';
+                
+                // Force another render after locking
+                renderer.render(scene, camera);
+                
+                // Add a safety check to ensure player can move
+                setTimeout(() => {
+                    if (!moveForward && !moveBackward && !moveLeft && !moveRight) {
+                        console.log("Movement safety check passed");
+                    }
+                }, 100);
+            }, 300); // Increased delay to 300ms
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Always render the scene
+            renderer.render(scene, camera);
+            
+            if (controls.isLocked === true) {
+                const time = performance.now();
+                const delta = (time - prevTime) / 1000;
+                
+                if (!sleepMode) {
+                    // Normal movement code for when not sleeping
+                    // Get input direction - FIXED: Reversed Z axis to correct W/S inversion
+                    const inputDirection = new THREE.Vector3(0, 0, 0);
+                    if (moveForward) inputDirection.z = -1;  // W key - move forward (negative Z)
+                    if (moveBackward) inputDirection.z = 1;  // S key - move backward (positive Z)
+                    if (moveLeft) inputDirection.x = -1;     // A key - move left (negative X)
+                    if (moveRight) inputDirection.x = 1;     // D key - move right (positive X)
+                    
+                    // Normalize if moving diagonally to prevent faster diagonal movement
+                    if (inputDirection.length() > 0) {
+                        inputDirection.normalize();
+                    }
+                    
+                    // Only process movement if there's input
+                    if (inputDirection.length() > 0) {
+                        // Get camera's forward and right vectors (ignore Y component for ground movement)
+                        // FIXED: Using the correct camera direction vectors
+                        const forward = new THREE.Vector3(0, 0, -1);
+                        forward.applyQuaternion(camera.quaternion);
+                        forward.y = 0;
+                        forward.normalize();
+                        
+                        const right = new THREE.Vector3(1, 0, 0);
+                        right.applyQuaternion(camera.quaternion);
+                        right.y = 0;
+                        right.normalize();
+                        
+                        // Calculate world-space movement direction
+                        playerDirection.set(0, 0, 0);
+                        playerDirection.addScaledVector(forward, -inputDirection.z); // FIXED: Negative to correct direction
+                        playerDirection.addScaledVector(right, inputDirection.x);
+                        
+                        if (playerDirection.length() > 0) {
+                            playerDirection.normalize();
+                        }
+                        
+                        // Apply acceleration
+                        const targetSpeed = moveSpeed;
+                        const acceleration = 10.0;
+                        
+                        playerVelocity.x = THREE.MathUtils.lerp(
+                            playerVelocity.x,
+                            playerDirection.x * targetSpeed,
+                            acceleration * delta
+                        );
+                        
+                        playerVelocity.z = THREE.MathUtils.lerp(
+                            playerVelocity.z,
+                            playerDirection.z * targetSpeed,
+                            acceleration * delta
+                        );
+                    } else {
+                        // No input - decelerate to a stop
+                        const deceleration = 10.0;
+                        playerVelocity.x = THREE.MathUtils.lerp(playerVelocity.x, 0, deceleration * delta);
+                        playerVelocity.z = THREE.MathUtils.lerp(playerVelocity.z, 0, deceleration * delta);
+                    }
+                    
+                    // Store original position for collision detection
+                    const originalPosition = controls.getObject().position.clone();
+                    
+                    // Apply movement with collision detection - X axis
+                    if (Math.abs(playerVelocity.x) > 0.001) {
+                        controls.getObject().position.x += playerVelocity.x * delta;
+                        
+                        if (checkCollisions()) {
+                            controls.getObject().position.x = originalPosition.x;
+                            playerVelocity.x = 0;
+                        }
+                    }
+                    
+                    // Apply movement with collision detection - Z axis
+                    if (Math.abs(playerVelocity.z) > 0.001) {
+                        controls.getObject().position.z += playerVelocity.z * delta;
+                        
+                        if (checkCollisions()) {
+                            controls.getObject().position.z = originalPosition.z;
+                            playerVelocity.z = 0;
+                        }
+                    }
+                    
+                    // Handle jumping
+                    if (isJumping) {
+                        // Apply jump velocity and gravity
+                        jumpVelocity -= gravity * delta;
+                        controls.getObject().position.y += jumpVelocity * delta;
+                        
+                        // Check if player has landed
+                        if (controls.getObject().position.y <= playerHeight) {
+                            controls.getObject().position.y = playerHeight;
+                            isJumping = false;
+                            jumpVelocity = 0;
+                        }
+                        
+                        // Check for ceiling collision
+                        if (controls.getObject().position.y >= roomHeight - 0.3) {
+                            controls.getObject().position.y = roomHeight - 0.3;
+                            jumpVelocity = -jumpVelocity * 0.3; // Bounce slightly
+                        }
+                    }
+                    
+                    // Enforce room boundaries
+                    enforceRoomBoundaries(controls.getObject().position);
+                    
+                    // Head bobbing effect - only when not jumping
+                    if (!isJumping) {
+                        const currentSpeed = new THREE.Vector2(playerVelocity.x, playerVelocity.z).length();
+                        
+                        if (currentSpeed > 0.5) {
+                            bobActive = true;
+                            
+                            // Calculate bob intensity based on speed
+                            const speedFactor = Math.min(currentSpeed / moveSpeed, 1.0);
+                            
+                            // Adjust bob frequency based on speed
+                            bobTimer += delta * (3 + speedFactor * 2);
+                            
+                            // More natural head bob with speed-dependent intensity
+                            bobHeight = Math.sin(bobTimer) * 0.02 * speedFactor;
+                            
+                            // Apply vertical bobbing
+                            controls.getObject().position.y = playerHeight + bobHeight;
+                        } else {
+                            if (bobActive) {
+                                // Smoothly return to normal height
+                                bobTimer = 0;
+                                bobHeight = 0;
+                                bobActive = false;
+                                
+                                // Enforce gravity - always return to proper height
+                                controls.getObject().position.y = THREE.MathUtils.lerp(
+                                    controls.getObject().position.y,
+                                    playerHeight,
+                                    delta * 5
+                                );
+                            }
+                        }
+                    }
+                } else {
+                    // FIXED: When in sleep mode, ensure player stays in bed position
+                    // but allow full 360° looking around
+                    const bedPosition = new THREE.Vector3(roomWidth/4, playerHeight - 1.0, 0);
+                    controls.getObject().position.copy(bedPosition);
+                    
+                    // No additional constraints on camera rotation here
+                    // Let the modified onMouseMove handle the camera rotation
+                }
+                
+                // Check for computer and bed interaction
+                raycaster.setFromCamera(new THREE.Vector2(), camera);
+                const intersects = raycaster.intersectObjects(scene.children);
+                
+                let foundComputer = false;
+                let foundBed = false;
+                
+                for (let i = 0; i < intersects.length; i++) {
+                    if (intersects[i].object.name === "computer" && intersects[i].distance < 2) {
+                        foundComputer = true;
+                        break;
+                    }
+                    if (intersects[i].object.name === "bed" && intersects[i].distance < 2) {
+                        foundBed = true;
+                        break;
+                    }
+                }
+                
+                if (foundComputer && !computerActive && !sleepMode) {
+                    computerInteractable = true;
+                    interactionPrompt.style.display = 'block';
+                    bedInteractable = false;
+                    document.getElementById('sleep-prompt').style.display = 'none';
+                } else if (foundBed && !sleepMode && !computerActive) {
+                    bedInteractable = true;
+                    document.getElementById('sleep-prompt').style.display = 'block';
+                    computerInteractable = false;
+                    interactionPrompt.style.display = 'none';
+                } else {
+                    computerInteractable = false;
+                    interactionPrompt.style.display = 'none';
+                    bedInteractable = false;
+                    document.getElementById('sleep-prompt').style.display = 'none';
+                }
+                
+                prevTime = time;
+            }
+        }
+
+        // Helper function to check for collisions
+        function checkCollisions() {
+            const playerPosition = controls.getObject().position;
+            
+            // Create player bounding box
+            const playerBox = new THREE.Box3();
+            playerBox.min.set(
+                playerPosition.x - playerRadius,
+                playerPosition.y - playerHeight,
+                playerPosition.z - playerRadius
+            );
+            playerBox.max.set(
+                playerPosition.x + playerRadius,
+                playerPosition.y,
+                playerPosition.z + playerRadius
+            );
+            
+            // Check collisions with all colliders
+            for (let i = 0; i < colliders.length; i++) {
+                const collider = colliders[i];
+                const colliderBox = new THREE.Box3().setFromObject(collider);
+                
+                // Check for collision
+                if (playerBox.intersectsBox(colliderBox)) {
+                    return true; // Collision detected
+                }
+            }
+            
+            return false; // No collision
+        }
+
+        // Add this function to enforce room boundaries
+        function enforceRoomBoundaries(position) {
+            // Define safe boundaries with a small margin from the walls
+            const margin = 1.0;
+            const minX = -roomWidth/2 + margin;
+            const maxX = roomWidth/2 - margin;
+            const minZ = -roomDepth/2 + margin;
+            const maxZ = roomDepth/2 - margin;
+            
+            // Clamp position values to stay within boundaries
+            position.x = Math.max(minX, Math.min(maxX, position.x));
+            position.z = Math.max(minZ, Math.min(maxZ, position.z));
+            
+            // Only enforce height if not jumping
+            if (!isJumping) {
+                position.y = playerHeight;
+            }
+            
+            return position;
+        }
+
+        function onKeyDown(event) {
+            if (sleepMode) {
+                // Allow R key to exit sleep mode
+                if (event.code === 'KeyR') {
+                    exitSleep();
+                }
+                return; // Ignore all other keys during sleep
+            }
+            
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveForward = true;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    moveLeft = true;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveBackward = true;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    moveRight = true;
+                    break;
+                case 'Space':
+                    // Handle jumping - only if not already jumping
+                    if (!isJumping && !computerActive) {
+                        isJumping = true;
+                        jumpVelocity = jumpStrength;
+                        
+                        // Disable head bobbing when jumping
+                        bobActive = false;
+                        bobTimer = 0;
+                        bobHeight = 0;
+                    }
+                    break;
+                case 'KeyE':
+                    if (computerInteractable && !computerActive && !sleepMode) {
+                        activateComputer();
+                    }
+                    break;
+                case 'KeyR':
+                    if (bedInteractable && !sleepMode && !computerActive) {
+                        activateSleep();
+                    }
+                    break;
+                case 'Escape':
+                    if (computerActive) {
+                        event.preventDefault();
+                        exitComputer();
+                    }
+                    break;
+            }
+        }
+
+        function onKeyUp(event) {
+            switch (event.code) {
+                case 'ArrowUp':
+                case 'KeyW':
+                    moveForward = false;
+                    break;
+                case 'ArrowLeft':
+                case 'KeyA':
+                    moveLeft = false;
+                    break;
+                case 'ArrowDown':
+                case 'KeyS':
+                    moveBackward = false;
+                    break;
+                case 'ArrowRight':
+                case 'KeyD':
+                    moveRight = false;
+                    break;
+            }
+        }
+
+        function onWindowResize() {
+            camera.left = (window.innerWidth / 2) - (window.innerWidth / 2);
+            camera.right = (window.innerWidth / 2) + (window.innerWidth / 2);
+            camera.top = (window.innerHeight / 2) + (window.innerHeight / 2);
+            camera.bottom = (window.innerHeight / 2) - (window.innerHeight / 2);
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Move debug overlay to left side and remove "Trench Realm - Debug" text
+        function addDebugOverlay() {
+            const debugOverlay = document.createElement('div');
+            debugOverlay.style.position = 'absolute';
+            debugOverlay.style.top = '10px';
+            debugOverlay.style.left = '10px'; // Changed to left side
+            debugOverlay.style.backgroundColor = 'rgba(0,0,0,0.6)';
+            debugOverlay.style.color = 'white';
+            debugOverlay.style.padding = '15px';
+            debugOverlay.style.zIndex = '1000';
+            debugOverlay.style.fontFamily = 'Arial, sans-serif';
+            debugOverlay.style.fontSize = '13px';
+            debugOverlay.style.borderRadius = '8px';
+            debugOverlay.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+            debugOverlay.style.backdropFilter = 'blur(3px)';
+            debugOverlay.style.maxWidth = '250px';
+            debugOverlay.id = 'debug-overlay';
+            document.body.appendChild(debugOverlay);
+            
+            // Update debug info without the title - AVOID TEMPLATE LITERALS
+            setInterval(() => {
+                if (!controls) return;
+                const pos = controls.getObject().position;
+                const rot = camera.rotation;
+                
+                // Create elements explicitly
+                debugOverlay.innerHTML = ''; // Clear previous content
+                
+                // Position row
+                const posRow = document.createElement('div');
+                posRow.style.display = 'flex';
+                posRow.style.justifyContent = 'space-between';
+                posRow.style.marginBottom = '4px';
+                
+                const posLabel = document.createElement('span');
+                posLabel.style.opacity = '0.8';
+                posLabel.textContent = 'Position:';
+                
+                const posValue = document.createElement('span');
+                posValue.textContent = 'X:' + pos.x.toFixed(1) + ' Y:' + pos.y.toFixed(1) + ' Z:' + pos.z.toFixed(1);
+                
+                posRow.appendChild(posLabel);
+                posRow.appendChild(posValue);
+                debugOverlay.appendChild(posRow);
+                
+                // Rotation row
+                const rotRow = document.createElement('div');
+                rotRow.style.display = 'flex';
+                rotRow.style.justifyContent = 'space-between';
+                rotRow.style.marginBottom = '4px';
+                
+                const rotLabel = document.createElement('span');
+                rotLabel.style.opacity = '0.8';
+                rotLabel.textContent = 'Rotation:';
+                
+                const rotValue = document.createElement('span');
+                rotValue.textContent = 'X:' + rot.x.toFixed(1) + ' Y:' + rot.y.toFixed(1) + ' Z:' + rot.z.toFixed(1);
+                
+                rotRow.appendChild(rotLabel);
+                rotRow.appendChild(rotValue);
+                debugOverlay.appendChild(rotRow);
+                
+                // Computer row
+                const computerRow = document.createElement('div');
+                computerRow.style.display = 'flex';
+                computerRow.style.justifyContent = 'space-between';
+                computerRow.style.marginBottom = '4px';
+                
+                const computerLabel = document.createElement('span');
+                computerLabel.style.opacity = '0.8';
+                computerLabel.textContent = 'Computer:';
+                
+                const computerValue = document.createElement('span');
+                computerValue.style.color = computerActive ? '#4CAF50' : '#ff4444';
+                computerValue.textContent = computerActive ? 'ACTIVE' : 'INACTIVE';
+                
+                computerRow.appendChild(computerLabel);
+                computerRow.appendChild(computerValue);
+                debugOverlay.appendChild(computerRow);
+                
+                // Sleep mode row
+                const sleepRow = document.createElement('div');
+                sleepRow.style.display = 'flex';
+                sleepRow.style.justifyContent = 'space-between';
+                
+                const sleepLabel = document.createElement('span');
+                sleepLabel.style.opacity = '0.8';
+                sleepLabel.textContent = 'Sleep mode:';
+                
+                const sleepValue = document.createElement('span');
+                sleepValue.style.color = sleepMode ? '#4CAF50' : '#ff4444';
+                sleepValue.textContent = sleepMode ? 'ACTIVE' : 'INACTIVE';
+                
+                sleepRow.appendChild(sleepLabel);
+                sleepRow.appendChild(sleepValue);
+                debugOverlay.appendChild(sleepRow);
+                
+            }, 500);
+        }
+
+        // Modify the setupFullscreenAndControls function to remove the custom prompt
+        function setupFullscreenAndControls() {
+            // Add a class to the body to help with CSS targeting
+            controls.addEventListener('lock', function() {
+                document.body.classList.add('controls-locked');
+            });
+            
+            // When unlocked, remove the class
+            controls.addEventListener('unlock', function() {
+                document.body.classList.remove('controls-locked');
+            });
+            
+            // Add CSS to try to hide the browser's ESC message
+            const style = document.createElement('style');
+            style.textContent = `
+                /* Attempt to hide browser pointer lock messages */
+                .controls-locked .pointerlock-message,
+                .controls-locked [class*="pointer-lock"],
+                .controls-locked [id*="pointer-lock"],
+                .controls-locked [class*="pointerLock"],
+                .controls-locked [id*="pointerLock"] {
+                    display: none !important;
+                    opacity: 0 !important;
+                    visibility: hidden !important;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
+        // Add function to load tab content
+        function loadTab(tabName) {
+            currentTab = tabName;
+            console.log("Loading tab:", tabName);
+            
+            // Update active tab button
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.toggle('active', button.dataset.tab === tabName);
+            });
+            
+            try {
+                // Set iframe source based on tab with error handling
+                switch(tabName) {
+                    case 'jup':
+                        console.log("Loading JUP");
+                        computerIframe.src = 'https://jup.ag/';
+                        break;
+                    default:
+                        console.log("Unknown tab:", tabName);
+                        computerIframe.src = 'about:blank';
+                }
+            } catch (e) {
+                console.error('Error loading tab:', e);
+                computerIframe.src = 'about:blank';
+                
+                // Display a simple error message in the iframe
+                setTimeout(() => {
+                    try {
+                        const doc = computerIframe.contentDocument;
+                        doc.open();
+                        doc.write('<html><body style="background:#15202b;color:white;text-align:center;padding:50px;">');
+                        doc.write('<h1 style="color:#ff4444">Error Loading Tab</h1>');
+                        doc.write('<p>' + e.message + '</p>');
+                        doc.write('</body></html>');
+                        doc.close();
+                    } catch (err) {
+                        console.error("Failed to show error page:", err);
+                    }
+                }, 100);
+            }
+        }
+    </script>
+</body>
+</html>
